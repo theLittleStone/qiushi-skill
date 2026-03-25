@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# SessionStart hook for qiushi-skill plugin
+# 在每次会话开始时注入"武装思想"入口 skill
+
+set -euo pipefail
+
+# 确定插件根目录
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# 读取武装思想 skill 内容
+arming_thought_content=$(cat "${PLUGIN_ROOT}/skills/arming-thought/SKILL.md" 2>&1 || echo "Error reading arming-thought skill")
+
+# JSON 转义函数
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+arming_thought_escaped=$(escape_for_json "$arming_thought_content")
+session_context="<EXTREMELY_IMPORTANT>\n你的头脑已被教员思想武装。\n你必须先以“实事求是”约束判断。\n\n**以下是你的 'qiushi:arming-thought' skill 的完整内容——你的思想武装指南。其他具体思想武器请使用 Skill 工具调用：**\n\n${arming_thought_escaped}\n\n</EXTREMELY_IMPORTANT>"
+
+# 平台适配输出
+# Cursor hooks 使用 additional_context
+# Claude Code hooks 使用 hookSpecificOutput.additionalContext
+# 使用 printf 而非 heredoc 以避免 bash 5.3+ 的大内容变量展开挂起问题
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  # Cursor 平台
+  printf '{\n  "additional_context": "%s"\n}\n' "$session_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  # Claude Code 平台
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  # 其他平台 — 使用 additional_context 作为兜底
+  printf '{\n  "additional_context": "%s"\n}\n' "$session_context"
+fi
+
+exit 0
