@@ -37,8 +37,6 @@
    <img src="https://raw.githubusercontent.com/HughYau/qiushi-skill/main/assets/github0409trend.png" alt="4月9日日榜第七" width="760"/>
 </p>
 
-由于一些不可抗力因素，🧱内出现了限流和封禁，请大家理性传播，保护好自己账号。
-
 >  "让人讲话，天不会塌下来。"
 
 ## 🔍 为什么需要这个？
@@ -57,7 +55,7 @@
 
 - 🚫 **这不是 Politics或者Propaganda。** 这是 Methodology。教员思想中的哲学方法论可以用于指导任何需要分析问题和解决问题的场景。
 - 🧭 **这不是人格蒸馏。** 该项目发布于3月25日，彼时尚无“人格蒸馏”这一概念。作者认为，以skills本身的形式限制，除了作为知识库和工作流的载体，大模型目前不能够、也不应被用来模拟人物人格，任何此类尝试都不可避免地流于失真。
-- 🧰 **这不是自动化工具箱。** 它不会替你生成答案或直接给出最优解，而是提供一套约束思考过程的方法论框架。
+
 
 *本项目仅提炼经实践检验的方法论，将其转化为可执行的认知工具，以实现取法其上、用之于今，以期借前人之光，照当下之路。*
 
@@ -118,13 +116,6 @@ graph TD
 
 ## 📦 安装
 
-### 系统要求
-
-- **标准安装器**：`npx qiushi-skill` 需要 Node.js `18.17+`
-- **Windows**：自动注入优先走原生 PowerShell hook，无需额外安装 Bash
-- **macOS / Linux**：仅在直接运行 POSIX hook 或 legacy 验证脚本时需要 `bash` 或 `sh`
-- **推荐验证**：`npx qiushi-skill validate`
-- **兜底验证**：`tests/validate.sh`（macOS/Linux）和 `tests/validate.ps1`（Windows）
 
 ### 方式一：`npx qiushi-skill` 一键安装（首推）
 
@@ -158,69 +149,15 @@ CLI 会：
 /plugin install qiushi-skill@qiushi-skill
 ```
 
-这是 `v1.3.0` 起的首选官方链路，不再依赖第三方 marketplace 转发服务。
-
-### 方式三：源码安装与手动接入
-
-#### Claude Code
-
-```bash
-git clone https://github.com/HughYau/qiushi-skill
-cd qiushi-skill
-claude --plugin-dir .
-```
-
-如果你只想验证当前仓库是否完整，可直接运行：
-
-```bash
-npx qiushi-skill validate
-```
-
-#### Cursor
-
-可用标准安装器：
-
-```bash
-npx qiushi-skill install --target cursor --scope user
-```
-
-或手动把本仓库作为插件 bundle 放到你的 Cursor 插件目录，并确认 `.cursor-plugin/plugin.json` 可被识别。
-
-#### Codex
-
-参考 [docs/README.codex.md](docs/README.codex.md) 或直接让 Codex 读取 [.codex/INSTALL.md](.codex/INSTALL.md)。
-
-#### OpenCode
-
-参考 [docs/README.opencode.md](docs/README.opencode.md) 或直接让 OpenCode 读取 [.opencode/INSTALL.md](.opencode/INSTALL.md)。
-
-#### OpenClaw
-
-截至 **2026-04-14**，OpenClaw 官方文档已明确支持把 Claude / Cursor / Codex bundles 映射为原生插件，并支持直接从 GitHub 仓库读取 marketplace。可参考 [docs/README.openclaw.md](docs/README.openclaw.md) 或 [.openclaw/INSTALL.md](.openclaw/INSTALL.md)。
-
-#### Hermes Agent
-
-截至 **2026-04-14**，Hermes Agent 官方文档已提供原生 `skills` 目录与 `hermes skills list` / `--toolsets "skills"` 工作流。推荐参考 [docs/README.hermes.md](docs/README.hermes.md) 或 [.hermes/INSTALL.md](.hermes/INSTALL.md)。
-
-#### 其他平台
-
-本项目的核心是 `skills/` 目录下的 Markdown 文件。任何支持 system prompt 注入的 AI 工具都可以使用：
-
-1. 将 `skills/arming-thought/SKILL.md` 作为 system prompt 的一部分注入
-2. 将各具体 skill 的 `SKILL.md` 作为按需加载的参考文档
-3. 如果支持 Markdown commands，可一并加载 `commands/` 目录
-
-### 方式四：Claude Plugin Hub（备选）
-
-如果你已经在用 Claude Plugin Hub，旧链路仍然可用：
+### 方式三：Claude Plugin Hub（备选）
 
 ```bash
 npx claudepluginhub hughyau/qiushi-skill
 ```
 
-但从 `1.3.0` 起，它不再是主推荐路径。
 
-### 方式五：直接贴给 AI agent 安装
+
+### 方式四：直接贴给 AI agent 安装
 
 如果你在让 Claude Code、Cursor Agent 或其他终端型 AI 助手代你安装，可以直接粘贴下面这段：
 
@@ -293,7 +230,7 @@ npx claudepluginhub hughyau/qiushi-skill
 npx qiushi-skill validate
 ```
 
-兜底脚本：
+脚本：
 
 ```bash
 bash tests/validate.sh
@@ -305,14 +242,6 @@ Windows：
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File tests/validate.ps1
 ```
 
-验证脚本会检查：
-- JSON 配置是否有效
-- `.claude-plugin/marketplace.json` 与 `package.json` 版本是否一致
-- CLI 入口与平台安装文档是否存在
-- hook 文件与命令文件是否齐全
-- `SKILL.md` / agent / command 的 frontmatter 是否完整
-- 本地 Markdown 链接和图片路径是否存在
-- 平台对应的 hook smoke test 是否可解析
 
 更多平台细节见 [docs/platforms.md](docs/platforms.md)。
 
@@ -397,15 +326,6 @@ qiushi-skill/
 
 本项目中所有语录和方法论均引自公开出版物。每条引用都标注了原文出处（篇名和年份），力求高度忠实于原著本意。引用目的仅为方法论研究和应用，不涉及政治立场。
 
-## 🔌 平台支持
-
-- Claude Code：官方 marketplace + SessionStart 自动注入 + commands
-- Cursor：插件元数据 + commands + `npx qiushi-skill install`
-- OpenClaw：官方支持 Claude bundle / GitHub marketplace，对接文档见 [docs/README.openclaw.md](docs/README.openclaw.md)
-- Hermes Agent：原生 skills 目录与 CLI 工作流，对接文档见 [docs/README.hermes.md](docs/README.hermes.md)
-- Codex：原生安装入口文档见 [docs/README.codex.md](docs/README.codex.md)
-- OpenCode：原生安装入口文档见 [docs/README.opencode.md](docs/README.opencode.md)
-- 通用：直接复用 `skills/` 与 `commands/`
 
 ## Star History
 

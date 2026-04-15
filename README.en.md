@@ -109,7 +109,6 @@ Validation checks:
 - presence of CLI files, hooks, commands, and platform docs
 - frontmatter completeness for skills, commands, and agents
 - local Markdown link integrity
-- hook smoke tests for the current platform
 
 ## How to Use It
 

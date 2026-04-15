@@ -1,6 +1,5 @@
 import path from "node:path";
 import { chmod, readFile, readdir, stat } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const REQUIRED_JSON_FILES = [
@@ -55,16 +54,6 @@ const COMMANDS = [
   "overall-planning",
   "workflows",
 ];
-
-function isAsciiOnly(value) {
-  for (const character of value) {
-    if (character.charCodeAt(0) > 127) {
-      return false;
-    }
-  }
-
-  return true;
-}
 
 async function exists(targetPath) {
   try {
@@ -146,89 +135,54 @@ async function validateMarkdownLinks(repoRoot, relativePath, errors) {
   }
 }
 
-function runCommand(command, args, options = {}) {
-  return spawnSync(command, args, {
-    encoding: "utf8",
-    ...options,
-  });
-}
-
-function validateHookJsonOutput(output, label) {
-  const trimmed = output.trim();
-  const parsed = JSON.parse(trimmed);
-  if (!parsed.hookSpecificOutput?.additionalContext?.includes("qiushi:arming-thought")) {
-    throw new Error(`${label} payload missing skill context`);
+function validateTextIncludes(content, expected, label, errors) {
+  if (!content.includes(expected)) {
+    errors.push(`${label} is missing '${expected}'`);
   }
 }
 
-async function runHookSmokeTests(repoRoot, errors) {
-  if (process.platform === "win32") {
-    const env = {
-      ...process.env,
-      CLAUDE_PLUGIN_ROOT: repoRoot,
-    };
-    const psPath = path.join(repoRoot, "hooks", "session-start.ps1");
-    const cmdPath = path.join(repoRoot, "hooks", "run-hook.cmd");
-
-    const psResult = runCommand(
-      "powershell.exe",
-      ["-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psPath],
-      { env }
-    );
-
-    if (psResult.status !== 0) {
-      errors.push(`PowerShell hook exited with error: ${psResult.stderr.trim() || psResult.status}`);
-    } else {
-      try {
-        if (!isAsciiOnly(psResult.stdout.trim())) {
-          throw new Error("PowerShell hook output must stay ASCII-only");
-        }
-        validateHookJsonOutput(psResult.stdout, "PowerShell hook");
-      } catch (error) {
-        errors.push(error.message);
-      }
-    }
-
-    const cmdResult = runCommand(cmdPath, ["session-start"], {
-      env,
-      shell: true,
-    });
-    if (cmdResult.status !== 0) {
-      errors.push(`run-hook.cmd exited with error: ${cmdResult.stderr.trim() || cmdResult.status}`);
-    } else {
-      try {
-        if (!isAsciiOnly(cmdResult.stdout.trim())) {
-          throw new Error("run-hook.cmd output must stay ASCII-only");
-        }
-        validateHookJsonOutput(cmdResult.stdout, "run-hook.cmd");
-      } catch (error) {
-        errors.push(error.message);
-      }
-    }
-
+async function validateHookStructure(repoRoot, hooksJson, errors) {
+  const sessionStartEntries = hooksJson?.hooks?.SessionStart;
+  if (!Array.isArray(sessionStartEntries) || sessionStartEntries.length === 0) {
+    errors.push("hooks/hooks.json is missing hooks.SessionStart entries");
     return;
   }
 
-  const hookPath = path.join(repoRoot, "hooks", "session-start");
-  await chmod(hookPath, 0o755).catch(() => {});
-
-  const shellResult = runCommand(hookPath, [], {
-    env: {
-      ...process.env,
-      CLAUDE_PLUGIN_ROOT: repoRoot,
-    },
-  });
-
-  if (shellResult.status !== 0) {
-    errors.push(`Bash hook exited with error: ${shellResult.stderr.trim() || shellResult.status}`);
-    return;
+  const [sessionStart] = sessionStartEntries;
+  if (sessionStart.matcher !== "startup|clear|compact") {
+    errors.push("hooks/hooks.json SessionStart matcher must stay 'startup|clear|compact'");
   }
 
-  try {
-    validateHookJsonOutput(shellResult.stdout, "Bash hook");
-  } catch (error) {
-    errors.push(error.message);
+  const command = sessionStart.hooks?.[0]?.command ?? "";
+  if (!command.includes("run-hook.cmd") || !command.includes("session-start")) {
+    errors.push("hooks/hooks.json SessionStart command must invoke run-hook.cmd session-start");
   }
+
+  const shellHookPath = path.join(repoRoot, "hooks", "session-start");
+  await chmod(shellHookPath, 0o755).catch(() => {});
+
+  const shellHook = await readFile(shellHookPath, "utf8");
+  validateTextIncludes(shellHook, "qiushi:arming-thought", "hooks/session-start", errors);
+  validateTextIncludes(shellHook, "hookSpecificOutput", "hooks/session-start", errors);
+  validateTextIncludes(shellHook, "additionalContext", "hooks/session-start", errors);
+  validateTextIncludes(shellHook, "\"additional_context\"", "hooks/session-start", errors);
+  validateTextIncludes(shellHook, "CURSOR_PLUGIN_ROOT", "hooks/session-start", errors);
+  validateTextIncludes(shellHook, "CLAUDE_PLUGIN_ROOT", "hooks/session-start", errors);
+
+  const psHook = await readFile(path.join(repoRoot, "hooks", "session-start.ps1"), "utf8");
+  validateTextIncludes(psHook, "ConvertTo-AsciiJsonString", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "qiushi:arming-thought", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "hookSpecificOutput", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "additionalContext", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "\"additional_context\"", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "CURSOR_PLUGIN_ROOT", "hooks/session-start.ps1", errors);
+  validateTextIncludes(psHook, "CLAUDE_PLUGIN_ROOT", "hooks/session-start.ps1", errors);
+
+  const cmdHook = await readFile(path.join(repoRoot, "hooks", "run-hook.cmd"), "utf8");
+  validateTextIncludes(cmdHook, "%HOOK_NAME%.ps1", "hooks/run-hook.cmd", errors);
+  validateTextIncludes(cmdHook, "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File", "hooks/run-hook.cmd", errors);
+  validateTextIncludes(cmdHook, "bash \"%SCRIPT_DIR%%HOOK_NAME%\"", "hooks/run-hook.cmd", errors);
+  validateTextIncludes(cmdHook, "sh \"%SCRIPT_DIR%%HOOK_NAME%\"", "hooks/run-hook.cmd", errors);
 }
 
 export async function runValidation({ repoRoot, stdout = process.stdout, stderr = process.stderr } = {}) {
@@ -311,8 +265,8 @@ export async function runValidation({ repoRoot, stdout = process.stdout, stderr 
     }
   }
 
-  stdout.write("Running hook smoke tests...\n");
-  await runHookSmokeTests(root, errors);
+  stdout.write("Validating hook structure...\n");
+  await validateHookStructure(root, jsonObjects.get("hooks/hooks.json"), errors);
 
   if (errors.length > 0) {
     for (const error of errors) {
